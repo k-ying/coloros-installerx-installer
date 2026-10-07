@@ -4,13 +4,14 @@
 - ✅ NP管理器 / 文件管理器调用安装 → 正常弹出 InstallerX
 - ✅ Hunter 的挂载层告警 `ACTIVE_OVERLAY_OVER_SYSTEM:/system_ext/priv-app` 消失
 - ✅ Hunter 侧**已无可修项**：它那份报告全部由 `/proc/mounts`（`parsedMounts=222`）推导，唯一强告警就是上面那条挂载层代码，已消失；其余 10 条弱告警指向 `/product/*`、`/vendor/*`，是**别的模块**产生的，与本文档这套无关。第九节已降级为**可选**打磨
-- ✅ **v1.1（对外分发版）**：修掉 `module.prop` / `customize.sh` 里仍指向 `meta-overlayfs` 的旧文案，改为 Hybrid Mount + VFS，并补上中英文说明；模块本身与 v1 功能一致（APK 未改动，sha256 不变）
+- ✅ **v1.1**：修掉 `module.prop` / `customize.sh` 里仍指向 `meta-overlayfs` 的旧文案，改为 Hybrid Mount + VFS，并补上中英文说明；模块本身与 v1 功能一致（APK 未改动，sha256 不变）
+- ✅ **v1.2（当前版本）**：改用上游 **InstallerX 26.09** 重新构建（APK **6166131** 字节）。这次发现并补上了构建流程里此前**缺失的一环**：包名要从 `com.rosan.installer.x.revived` 改成 `com.android.packageinstaller`，而且 **manifest 与 `resources.arsc` 两处都得改**。1.1 之所以没有这一步，只是因为那份上游 APK 事先已经被人改好名了 —— 也就是说 1.1 的构建流程无法从原版上游 APK 复现，1.2 才可以
 
 **交付物**（两个 ZIP 都在本仓库的 **Releases** 页，仓库内不存放二进制）
 
 | 文件 | 大小 | sha256 |
 |---|---|---|
-| `InstallerX-coloros-system-installer-v1.1.zip` | 3834891 | `879e98d9fbd63ebd79f7ccc0e2bfd21ee6553d6b77dbbc54e941c15b060f5f0a` |
+| `InstallerX-coloros-system-installer-v1.2.zip` | 4678296 | `ce220cbff2be20fd07b720fc3eb3e4e4900fc0014691874f4a46cab95c060251` |
 | `Hybrid-Mount-6.2.2-2053.zip`（元模块） | 6713210 | `52f067cfea4fafc2bde333bf717bf5338e244faca156caaf557a0288ce1b963c` |
 
 ---
@@ -97,7 +98,7 @@ su -c uname -r
 
 ```bash
 adb shell ls -l /system_ext/priv-app/OppoPackageInstaller/
-# 8979504 = 原版（模块没生效）   5006445 = 我们的（生效了）
+# 8979504 = 原版（模块没生效）   6166131 = 我们的（生效了）
 ```
 
 ### 2.2 三种后端，为什么只有 VFS 可行
@@ -184,7 +185,7 @@ HyM 里有**两个**看起来都能"选后端"的地方，别搞混：
 3. 在列表里找到我们的模块 —— 它**名字很长**：
    - 标题显示为 `InstallerX as system package instal…`
    - 副标题/id：`installerx-coloros-installer`
-   - 版本行：`1.1 (InstallerX 26.04.9d7dc1f)`，作者 `k_ying`
+   - 版本行：`1.2 (InstallerX 26.09)`，作者 `k_ying`
    - 右侧会有一个后端徽标（如果之前是 `OverlayFS`，就是它）
 4. 在该卡片的 **「模块默认」** 一行，点 **`VFS`**（同一行还有 继承全局 / OverlayFS / Magic Mount / 忽略）。
 5. 点**右下角保存**按钮（软盘图标）。
@@ -196,7 +197,7 @@ HyM 里有**两个**看起来都能"选后端"的地方，别搞混：
 
 ```bash
 adb shell ls -l /system_ext/priv-app/OppoPackageInstaller/
-# 5006445 = VFS 生效（正确）
+# 6166131 = VFS 生效（正确）
 # 8979504 = VFS 没起来/被降级成忽略（此安装器是原版，机器一切正常，但我们的替换没生效）
 ```
 
@@ -242,7 +243,7 @@ default_mode = "vfs"            # 只让我们的模块走 VFS
 
 ```bash
 adb shell uname -r                                            # 记下来，和上次对比
-adb shell ls -l /system_ext/priv-app/OppoPackageInstaller/    # 期望 5006445
+adb shell ls -l /system_ext/priv-app/OppoPackageInstaller/    # 期望 6166131
 ```
 
 平台升级/内核换线可能让 `.ko` 不再匹配 ⇒ VFS 静默降级 ⇒ 安装器悄悄回到原版（**不会卡机**，只是功能没了）。此时二选一：等/找匹配的 HyM 构建，或临时把我们的模块切回 **OverlayFS + 打开「禁用卸载注册」**（能用，但 Hunter 会报挂载项）。
@@ -252,7 +253,7 @@ adb shell ls -l /system_ext/priv-app/OppoPackageInstaller/    # 期望 5006445
 ## 六、安装本模块
 
 1. ```bash
-   adb push InstallerX-coloros-system-installer-v1.1.zip /sdcard/Download/   # 先在 Releases 页下载
+   adb push InstallerX-coloros-system-installer-v1.2.zip /sdcard/Download/   # 先在 Releases 页下载
    ```
 2. **KSU 管理器 → 模块 → 从本地安装** → 选这个 zip。（KSU 模块**不能**在 recovery 里刷。）
 3. 重启，然后按第五节把它的后端设成 **VFS**，再重启一次。
@@ -326,9 +327,9 @@ Hunter 那份报告是解析 `/proc/mounts` 得出的（`parsedMounts=222`），
 | 3 | **应用名与桌面入口** | 显示名 `InstallerX Revived`；`LauncherAlias` 带 MAIN/LAUNCHER | 显示名改成原版；删 `LauncherAlias`（**保留** `SecretCodeReceiver`，否则就没设置入口了） |
 | 4 | 多余组件 | `SecretCodeReceiver`、`SettingsTileService`（QS 磁贴）、`BiometricsAuthenticationActivity` | 保留 `SecretCodeReceiver`；其余可选删（生物识别相关删了会让"锁指纹"设置失效） |
 | 5 | 字符串 | `classes.dex`/`resources.arsc` 里有 `magisk` `xposed` `kernelsu` `shizuku` `dhizuku` `rosan` | 后续可选：抹掉 dex 字符串、把 `com.rosan.installer.*` 类名整体改名为 `com.android.packageinstaller.*` |
-| 6 | **`lib/**/*.so` 的 16KB 对齐** | v1 产物只有 4096 对齐（上游 base 和 OPPO 原版都是 16384） | 构建脚本改成自己做 16384 对齐（`.so` 16384、其余 4 字节），不再依赖 `signer.jar` 的 zipalign。**构建所用机型是 4096 页，因此不影响本文档对应机型的使用** |
+| 6 | **`lib/**/*.so` 的 16KB 对齐** | v1.1 产物只有 4096 对齐（当时那份上游 base 与 OPPO 原版都是 16384） | 构建脚本改成自己做 16384 对齐（`.so` 16384、其余 4 字节），不再依赖 `signer.jar` 的 zipalign。**v1.2 用的 26.09 上游不含任何原生库，所以这条对 1.2 已经不适用了**；构建所用机型也是 4096 页，一直不影响使用 |
 
-> 说明：这些属于"一眼假"级别的观感问题，清掉只是更整洁；**当前没有任何检测读到这一层**。而且无论怎么清，替换后 APK 的文件 hash 与原版必然不同 —— 内容层永远做不到"完全看不出"，所以不值得为它冒任何风险。第 6 项（16KB 对齐）与 Hunter 无关，是构建脚本的工程债，本机 4096 页不受影响。
+> 说明：这些属于"一眼假"级别的观感问题，清掉只是更整洁；**当前没有任何检测读到这一层**。而且无论怎么清，替换后 APK 的文件 hash 与原版必然不同 —— 内容层永远做不到"完全看不出"，所以不值得为它冒任何风险。第 6 项（16KB 对齐）与 Hunter 无关，是构建脚本的工程债：构建所用机型是 4096 页，本来就不受影响，而且 v1.2 用的 26.09 上游根本不带原生库。
 
 ---
 
@@ -400,7 +401,7 @@ GKI 的设计前提就是**内核与平台解耦**：内核 + vendor 在机型**
 ## 十三、备注
 
 - 设备上原有的 `com.rosan.installer.x.revived`（用户版）与我们的系统版**不冲突**，可留可删；它也可作为"安装器出问题时的临时替代"。
-- 尺寸对照：我们的 APK **5006445** 字节 / 官方原版 **8979504** 字节。
+- 尺寸对照：我们的 APK **6166131** 字节 / 官方原版 **8979504** 字节。
 - 模块内含 `post-fs-data.sh` 清理 `/data/system/package_cache/*`，`uninstall.sh` 同样清理。
 - 后端三选一的速查：**要能用又要安静 → VFS**；能用但会被检测 → OverlayFS/Magic + 关「禁用卸载注册」；**完全回原版 → 忽略**。
 
@@ -415,23 +416,28 @@ GKI 的设计前提就是**内核与平台解耦**：内核 + vendor 在机型**
 
 ### 14.2 相对上游改了什么
 
-只动 `AndroidManifest.xml`（`classes.dex` 与 `resources.arsc` 保持逐字节不变）：
+只改两个文件，其余条目（`classes.dex`、`classes2.dex`、`res/`、`assets/`）**逐字节保持上游原样**：
 
-1. **去掉 4 个权限**（其中 2 个是 Shizuku / Dhizuku 的第三方 API），使权限请求集不超出原厂安装器已证明可行的范围；
-2. **新增 4 个无 intent-filter 的 `activity-alias`**，对齐原厂安装器里被其它 App 以显式 `cmp=` 调用的组件名（`InstallStart` 等）；
-3. **收窄一个过于贪婪的 `VIEW` 过滤器** —— 原过滤器带 `*/*`，成为系统安装器后会把打开 PDF、图片等普通 `VIEW` 意图一并抢走。
+1. **改包名** `com.rosan.installer.x.revived` → `com.android.packageinstaller`。这个名字在 APK 里有**两处**，必须同时改：
+   - `AndroidManifest.xml` —— 共 6 处文本：`package` 属性、1 个自定义 permission 的声明与使用、3 个 provider 的 `authorities`；
+   - `resources.arsc` —— `ResTable_package` 里的 `char16 name[128]` 字段。这是**固定 256 字节**的字段，所以按字节改写、NUL 补齐即可，文件其余部分偏移全不变（`build/patch_arsc.py` 会断言"只有这 256 字节窗口内发生了变化"）。aapt2 的 `--rename-manifest-package` 也是两处一起改，但它会整体重建 `resources.arsc`，而这里刻意保留原表、只动这一个字段。
+2. **去掉 4 个权限**（其中 2 个是 Shizuku / Dhizuku 的第三方 API），使权限请求集不超出原厂安装器已证明可行的范围；
+3. **新增 4 个无 intent-filter 的 `activity-alias`**，对齐原厂安装器里被其它 App 以显式 `cmp=` 调用的组件名（`InstallStart` 等）；
+4. **收窄过于贪婪的 `VIEW` 过滤器** —— 原过滤器带 `*/*`，成为系统安装器后会让每一个 `content://` / `file://` 的 `VIEW` 意图都多出一个候选；同时补一个"只有 `INSTALL_PACKAGE`、不带 mimeType"的过滤器，保住 MIME 异常或缺失的安装请求；
+5. **版本号钉死**为设备已记录的 `versionCode=17000001` / `versionName=17.0.1`（在 `apktool.yml` 里改），否则会在 `packages.xml` 里记下一个版本变更。
 
 构建脚本在 [`build/`](build/)：
 
 | 文件 | 作用 |
 |---|---|
-| `build/patch_sys.py` | 对反编译出的 `AndroidManifest.xml` 做上面三处改动（幂等，可重复运行） |
-| `build/build_sysapk.sh` | 完整流程：patch manifest → 回编译 → 只把 `AndroidManifest.xml` 拼回原 APK → 对齐 → 移植签名块 |
+| `build/patch_sys.py` | 改反编译出的 `AndroidManifest.xml`：包名、权限、别名、过滤器（幂等，可重复运行） |
+| `build/patch_arsc.py` | 改 `resources.arsc` 里的包名字段，并断言窗口外零改动 |
+| `build/build_sysapk.sh` | 完整流程：解码 → 两处改名 → 回编译 → 把 manifest 与 arsc 拼回原 APK → 对齐 → 移植签名块 |
 | `build/graftsig.py` | 移植签名块并自动校验（块逐字节一致、所有条目偏移不变、CRC 通过、`.so` 对齐） |
 
 **重建所需的原料不在本仓库内**，需自备：
 
-- 上游 InstallerX Revived 的 APK（对应版本 `26.04.9d7dc1f`）；
+- 上游 InstallerX Revived 的 APK（**原版、未改名的**；本模块 1.2 用的是 `26.09`，`versionCode 1553`）；
 - **你自己机器上那份** `/system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk`（脚本里的 "donor"；这里刻意不转存原厂文件，见下方自查节）；
 - JDK 21、apktool 3.x，以及 [uber-apk-signer](https://github.com/patrickfav/uber-apk-signer)（脚本里的 `signer.jar`，仅用于 zipalign，其签名会在下一步被整体丢弃）。
 

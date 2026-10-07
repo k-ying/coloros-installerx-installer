@@ -1,43 +1,55 @@
-"""Patch the decoded yreidev manifest into our system-installer manifest.
+"""Patch the decoded upstream manifest into our system-installer manifest.
 
-Three edits, all idempotent (safe to run repeatedly on the same tree):
+Four edits, all idempotent (safe to run repeatedly on the same tree):
 
-  1. drop the two permissions that are plausibly `signature|privileged` on this
+  1. rename the package to TARGET_PACKAGE.
+
+     The upstream APK ships as `com.rosan.installer.x.revived`; a system
+     installer has to be `com.android.packageinstaller`.  Renaming is safe as a
+     plain string replacement here because the *class* names live under
+     `com.rosan.installer.*` and never under the package name itself -- in the
+     26.09 manifest the package string occurs in exactly six places, all of them
+     self-references (the `package` attribute, the DYNAMIC_RECEIVER permission
+     declaration and its use, and three provider authorities).
+
+     The matching rename inside resources.arsc is done separately by
+     patch_arsc.py, because that one is a binary field, not text.
+
+  2. drop the four permissions that are plausibly `signature|privileged` on this
      ROM but absent from the stock installer's request set (== the ROM's proven
-     allowlist surface). Everything else requested is either proven by the stock
-     OPPO installer or a normal/dangerous/unknown permission.
+     allowlist surface).  Two of them belong to Shizuku / Dhizuku; a privileged
+     system installer holding INSTALL_PACKAGES has no need for those backends,
+     so dropping them buys certainty at no real cost.
 
-  2. add four FILTERLESS, exported activity-aliases mirroring the component
+  3. add four FILTERLESS, exported activity-aliases mirroring the component
      names of the stock installer that other apps launch explicitly.
 
      Filterless is deliberate: `getRequiredInstallerLPr()` demands exactly one
      SYSTEM component matching ACTION_INSTALL_PACKAGE + DEFAULT + content/apk.
      The base APK's InstallerActivity already matches that, so the aliases must
-     not add a second matching component. Explicit `cmp=` callers need only the
+     not add a second matching component.  Explicit `cmp=` callers need only the
      component to exist and be exported -- they do not consult intent filters.
 
-  3. stop InstallerX from swallowing every "open this file" intent.
+  4. stop InstallerX from being a candidate for every "open this file" intent.
 
-     Its stock filter #1 is
+     InstallerActivity's first intent-filter carries
 
-         actions  VIEW, INSTALL_PACKAGE
-         scheme   content, file
          mime     application/vnd.android.package-archive
          mime     */*            <-- greedy
 
-     As an ordinary data app that is harmless, but this APK is about to become
-     the *system* installer, and IntentResolver orders candidates by
-     `priority` first, specificity never. At priority=10 the `*/*` alternative
-     would beat every normal handler (a PDF viewer, a photo viewer, ...) for
-     ANY content:// or file:// VIEW intent, so tapping a downloaded PDF would
-     open the installer.
+     As an ordinary data app that is harmless.  As the *system* installer it
+     means every `content://` or `file://` VIEW intent has an extra candidate,
+     so the `*/*` alternative is dropped while the APK-typed alternative is
+     kept.  Install requests whose MIME is unusual or missing would then no
+     longer match, so a second filter mirroring the stock installer's -- action
+     INSTALL_PACKAGE only, content/file schemes, *no* mimeType -- is added.
 
-     Fix: drop `*/*` from that filter and add a second filter that mirrors
-     filter #2 of the stock installer -- action INSTALL_PACKAGE (only), schemes
-     content/file, and *no* mimeType. Install requests whose MIME is unusual or
-     missing are still caught, while plain file-opening intents are not.
+     The added filters keep `android:priority="10"`, matching what the previous
+     verified build shipped, so implicit APK opens behave as before rather than
+     merely as upstream happens to behave.  With `*/*` gone the priority is no
+     longer dangerous: the filter only matches the APK MIME type.
 
-     Boot-safety of the added filter, without needing to know whether
+     Boot safety of the added filter, without needing to know whether
      IntentResolver dedupes a component's filters:
        * if a scheme-only filter DOES match a typed intent, then the stock
          installer (which has exactly that filter, alongside a mime-typed one)
@@ -46,6 +58,9 @@ Three edits, all idempotent (safe to run repeatedly on the same tree):
        * if it does NOT match, the filter adds no match at all.
      Either way the self-check still sees the single component
      com.rosan.installer.ui.activity.InstallerActivity.
+
+Reads/writes work/sysdec/AndroidManifest.xml by default; override with argv[1]
+or $MANIFEST.  The target package name comes from $TARGET_PACKAGE.
 """
 import os
 import re
@@ -55,6 +70,8 @@ import sys
 MANIFEST = (sys.argv[1] if len(sys.argv) > 1
             else os.environ.get('MANIFEST', 'work/sysdec/AndroidManifest.xml'))
 
+TARGET_PACKAGE = os.environ.get('TARGET_PACKAGE', 'com.android.packageinstaller')
+
 DROP_PERMISSIONS = [
     'android.permission.POST_PROMOTED_NOTIFICATIONS',
     'android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION',
@@ -62,12 +79,8 @@ DROP_PERMISSIONS = [
     # permissions whose protectionLevel carries PROTECTION_FLAG_PRIVILEGED, and
     # both of these are declared `signature` by Shizuku / Dhizuku -- but their
     # protection level lives in *those* apps' manifests, so it cannot be proven
-    # from this ROM.  A privileged system installer holding INSTALL_PACKAGES has
-    # no need for a Shizuku/Dhizuku backend, so the certainty is worth more than
-    # the feature: dropping them leaves our request set = stock's + 6 normal
-    # permissions (FOREGROUND_SERVICE_SPECIAL_USE, REQUEST_DELETE_PACKAGES,
-    # REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, USE_BIOMETRIC, USE_FINGERPRINT,
-    # VIBRATE), every one of which is protectionLevel="normal".
+    # from this ROM.  Dropping them leaves our request set = stock's + 6 normal
+    # permissions, every one of which is protectionLevel="normal".
     'com.rosan.dhizuku.permission.API',
     'moe.shizuku.manager.permission.API_V23',
 ]
@@ -84,30 +97,13 @@ ALIASES = [
      'com.rosan.installer.ui.activity.InstallerActivity'),
 ]
 
-GREEDY_FILTER = '''\
-            <intent-filter android:priority="10">
-                <action android:name="android.intent.action.VIEW"/>
-                <action android:name="android.intent.action.INSTALL_PACKAGE"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:scheme="content"/>
-                <data android:scheme="file"/>
-                <data android:mimeType="application/vnd.android.package-archive"/>
-                <data android:pathPattern=".*"/>
-                <data android:mimeType="*/*"/>
-            </intent-filter>
-'''
+INSTALLER_TAG = 'android:name="com.rosan.installer.ui.activity.InstallerActivity"'
+GREEDY_MIME_LINE = '                <data android:mimeType="*/*"/>\n'
+PLAIN_FILTER_OPEN = '            <intent-filter>\n'
+PRIORITY_FILTER_OPEN = '            <intent-filter android:priority="10">\n'
 
-REPLACEMENT_FILTERS = '''\
-            <intent-filter android:priority="10">
-                <action android:name="android.intent.action.VIEW"/>
-                <action android:name="android.intent.action.INSTALL_PACKAGE"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <data android:scheme="content"/>
-                <data android:scheme="file"/>
-                <data android:mimeType="application/vnd.android.package-archive"/>
-                <data android:pathPattern=".*"/>
-            </intent-filter>
-            <intent-filter android:priority="10">
+# Mirrors the stock installer's second filter: INSTALL_PACKAGE only, no mimeType.
+ADDED_FILTER = '''            <intent-filter android:priority="10">
                 <action android:name="android.intent.action.INSTALL_PACKAGE"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <data android:scheme="content"/>
@@ -119,6 +115,22 @@ rm_re = re.compile(
     r'^\s*<uses-permission\s+android:name="(?:' +
     '|'.join(re.escape(p) for p in DROP_PERMISSIONS) +
     r')"\s*/>\s*$')
+
+
+def rename_package(src):
+    m = re.search(r'<manifest[^>]*?\spackage="([^"]+)"', src)
+    if not m:
+        sys.exit('could not find the manifest package attribute')
+    old = m.group(1)
+    if old == TARGET_PACKAGE:
+        print(f'[0 renamed] package is already {TARGET_PACKAGE}')
+        return src
+    count = src.count(old)
+    src = src.replace(old, TARGET_PACKAGE)
+    if old in src:
+        sys.exit(f'package name still present after rename: {old}')
+    print(f'[1 renamed] {old} -> {TARGET_PACKAGE} ({count} occurrence(s))')
+    return src
 
 
 def drop_permissions(src):
@@ -156,17 +168,34 @@ def insert_aliases(src):
 
 
 def narrow_greedy_filter(src):
-    if REPLACEMENT_FILTERS in src:
+    """Drop `*/*` from InstallerActivity's first filter and add the extra one."""
+    if ADDED_FILTER in src:
         print('[0 replaced] greedy VIEW filter already narrowed')
         return src
-    if GREEDY_FILTER not in src:
-        sys.exit('could not find the greedy InstallerActivity filter to replace')
-    print('[1 replaced] VIEW /*/* narrowed + INSTALL_PACKAGE only filter added')
-    return src.replace(GREEDY_FILTER, REPLACEMENT_FILTERS, 1)
+
+    try:
+        at = src.index(INSTALLER_TAG)
+        fs = src.index('<intent-filter', at)
+        fe = src.index('</intent-filter>', fs) + len('</intent-filter>')
+    except ValueError:
+        sys.exit('could not locate InstallerActivity and its first intent-filter')
+
+    block = src[fs:fe]
+    if '*/*' not in block:
+        sys.exit('InstallerActivity\'s first filter has no */* -- upstream changed; '
+                 're-read the manifest before patching')
+
+    block = block.replace(GREEDY_MIME_LINE, '', 1)
+    if block.startswith(PLAIN_FILTER_OPEN):
+        block = block.replace(PLAIN_FILTER_OPEN, PRIORITY_FILTER_OPEN, 1)
+
+    print('[1 replaced] VIEW */* dropped + INSTALL_PACKAGE-only filter added')
+    return src[:fs] + block + '\n' + ADDED_FILTER + src[fe:]
 
 
 def main():
     src = open(MANIFEST, encoding='utf-8').read()
+    src = rename_package(src)
     src = drop_permissions(src)
     src = insert_aliases(src)
     src = narrow_greedy_filter(src)

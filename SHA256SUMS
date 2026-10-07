@@ -1,11 +1,16 @@
-# Release assets (both are attached to the v1.1 release, not stored in the repo)
-879e98d9fbd63ebd79f7ccc0e2bfd21ee6553d6b77dbbc54e941c15b060f5f0a  InstallerX-coloros-system-installer-v1.1.zip
+# Release assets for v1.2 (both are attached to the release, not stored in the repo)
+ce220cbff2be20fd07b720fc3eb3e4e4900fc0014691874f4a46cab95c060251  InstallerX-coloros-system-installer-v1.2.zip
 52f067cfea4fafc2bde333bf717bf5338e244faca156caaf557a0288ce1b963c  Hybrid-Mount-6.2.2-2053.zip
 
-# The APK inside InstallerX-coloros-system-installer-v1.1.zip (5006445 bytes), for reference
-419a2f91306b54af331a1e186290810773cc0231d283a36dbc8928bdf1988061  system/system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk
+# The APK inside InstallerX-coloros-system-installer-v1.2.zip (6166131 bytes), for reference
+54499ede4dcc51d76ab6de8566ea80f9ee7163e88d2e8348a324d3d552f8a265  system/system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk
 
 # The STOCK installer APK this build was made against (8979504 bytes).
 # This file is NOT distributed here -- check that the one on YOUR device matches
 # this hash before installing (see README, "适用条件与装前自查").
 aeb253b93289bc3d10c46747b31358e58ea2325feb8a2e6143545f5e3b62b068  OppoPackageInstaller.apk
+
+# --- previous release, kept so an already-downloaded v1.1 can still be verified ---
+879e98d9fbd63ebd79f7ccc0e2bfd21ee6553d6b77dbbc54e941c15b060f5f0a  InstallerX-coloros-system-installer-v1.1.zip
+# v1.1's APK, for reference (5006445 bytes)
+419a2f91306b54af331a1e186290810773cc0231d283a36dbc8928bdf1988061  (v1.1) system/system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk

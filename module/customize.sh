@@ -31,7 +31,7 @@ fi
 
 print "- currently installed installer:"
 print "  $(ls -l /system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk 2>/dev/null || echo '<not found>')"
-print "- after a reboot it should become 5006445 bytes (was 8979504)."
+print "- after a reboot it should become 6166131 bytes (was 8979504)."
 print "- backend reminder: VFS, not OverlayFS or Magic Mount."
 
 true
