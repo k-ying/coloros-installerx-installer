@@ -10,7 +10,7 @@
 
 | 文件 | 大小 | sha256 |
 |---|---|---|
-| `InstallerX-coloros-system-installer-v1.1.zip` | 3834887 | `9d607064d5d2a29e1099c31af47817f97eace189a5c2f5628697c203fbc220b2` |
+| `InstallerX-coloros-system-installer-v1.1.zip` | 3834891 | `879e98d9fbd63ebd79f7ccc0e2bfd21ee6553d6b77dbbc54e941c15b060f5f0a` |
 | `Hybrid-Mount-6.2.2-2053.zip`（元模块） | 6713210 | `52f067cfea4fafc2bde333bf717bf5338e244faca156caaf557a0288ce1b963c` |
 
 ---
@@ -184,7 +184,7 @@ HyM 里有**两个**看起来都能"选后端"的地方，别搞混：
 3. 在列表里找到我们的模块 —— 它**名字很长**：
    - 标题显示为 `InstallerX as system package instal…`
    - 副标题/id：`installerx-coloros-installer`
-   - 版本行：`1.1 (InstallerX 26.04.9d7dc1f)`，作者 `InstallerX Revived`
+   - 版本行：`1.1 (InstallerX 26.04.9d7dc1f)`，作者 `k_ying`
    - 右侧会有一个后端徽标（如果之前是 `OverlayFS`，就是它）
 4. 在该卡片的 **「模块默认」** 一行，点 **`VFS`**（同一行还有 继承全局 / OverlayFS / Magic Mount / 忽略）。
 5. 点**右下角保存**按钮（软盘图标）。

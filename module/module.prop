@@ -2,5 +2,5 @@ id=installerx-coloros-installer
 name=InstallerX as system package installer
 version=1.1 (InstallerX 26.04.9d7dc1f)
 versionCode=2
-author=InstallerX Revived
+author=k_ying
 description=[中文] 用 InstallerX Revived 替换系统安装器 com.android.packageinstaller：保留原包名与原版签名块，不禁用任何系统组件，开机的安装器自检仍然通过。需要元模块 Hybrid Mount，并把本模块的后端设为 VFS。仅适用于原版安装器 APK 与本构建逐字节一致的固件，未在其它机型验证。 [EN] Replaces the system package installer com.android.packageinstaller with InstallerX Revived. The package name and the original signing block are preserved and no system component is disabled, so the boot-time installer self-check still passes. Requires the Hybrid Mount metamodule, with this module's backend set to VFS. Only for firmware whose stock installer APK is byte-identical to the one this build was made from; not verified on other models.
