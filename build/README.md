@@ -87,3 +87,19 @@ uber-apk-signer 只按 **4 字节**对齐，所以产出的 `.so` 是 4096 对�
 包名在 `resources.arsc` 里的那一份由 `patch_arsc.py` 处理：它是 `ResTable_package` 里定长的 `char16 name[128]`（256 字节），所以原位改写 + NUL 补齐即可；脚本会断言"只有这 256 字节窗口内发生了变化"，文件长度和其余偏移都不变。
 
 上游换版本时如果锚点找不到，脚本会 `exit` 而不是静默跳过（例如 `*/*` 不在第一个 filter 里、或 manifest 里找不到 `package` 属性）—— 这种情况需要人工比对那段 XML 再改脚本。
+
+## 6. 关于 `module/META-INF/`
+
+`module/META-INF/com/google/android/` 下的 `update-binary` 与 `updater-script` 是 **Magisk 模块格式的遗留物**：`update-binary` 是 Magisk 的模板脚本，内容是要求 "Magisk v20.4+" 并 source `/data/adb/magisk/util_functions.sh`。
+
+**在 KernelSU 上它们完全不参与安装。** `ksud` 的安装流程（上游 `userspace/ksud/src/installer.sh`）在解压阶段就把整个 `META-INF` 排除掉了：
+
+```sh
+unzip -o "$ZIPFILE" -x 'META-INF/*' -d $MODPATH
+...
+[ -f $MODPATH/customize.sh ] && . $MODPATH/customize.sh
+```
+
+这两个文件**根本没被解压出来**，真正的安装钩子是 `customize.sh`。保留它们只是为了符合"模块 zip"的通用外观 —— 只有拿去给 Magisk 刷才会真的执行 `update-binary`，而本模块不支持 Magisk（原因见 README 的适用条件）。
+
+> APatch 与 KernelSU 共用同一套 userspace 安装逻辑，但这里没有逐行核对过。
