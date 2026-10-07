@@ -1,5 +1,28 @@
 # InstallerX 系统安装器替换模块 — 安装说明与项目报告（ColorOS 17 / 一加 15 PLK110）
 
+## 这个仓库和姊妹仓库怎么选（先看这个）
+
+同一件事（让 ColorOS 的系统安装器换成 InstallerX）有两种做法，仓库分开，**装一个就行**：
+
+| | **本仓库**（胖方案） | [coloros-installerx-forward-shell](https://github.com/k-ying/coloros-installer-forward-shell)（COS-IFS，转发壳） |
+|---|---|---|
+| 做法 | 把**整个 InstallerX APK** 改名 + 嫁接签名块后放进系统分区 | 一个 **17 KB 的壳**占住入口契约，把请求转发出去 |
+| 安装器本体 | 模块里**打包好的那一版**（本仓库 = InstallerX Revived 26.09） | **你自己装的那个 app**（版本、fork 随你） |
+| 上游发新版之后 | 重建 + 发版 + 重刷 | **什么都不用做** |
+| 模块体积 | 4.7 MB | **25 KB** |
+| 依赖 | Hybrid Mount 元模块 + 本模块后端设 VFS | 同左 |
+| 适合 | 想「一个 zip 搞定、刷完就是系统安装器」，不想再装第二个 app | 本来就在用 InstallerX / Universal Installer，想让它接管系统安装，且不想每次跟上游重建 |
+| 代价 | 版本**锁死在构建时那一版** | 需要你**先自己装好**一个第三方安装器；壳不做安装逻辑 |
+| 真机验证 | v1.2（ColorOS 17 / PLK110） | v0.7（ColorOS 17 / PLK110） |
+
+两者的**硬前提和安装步骤完全相同**（Hybrid Mount + VFS 后端、原版 APK 必须逐字节一致才谈得上兼容、
+不能同时启用、刷完必须重启），退化路径也一样。想少一个依赖就选本仓库，想跟上游解耦就选 COS-IFS。
+
+> ⚠️ **两者不能同时启用** —— 都占用 `com.android.packageinstaller`（同一个目标文件），
+> 同时开会直接导致 Hybrid Mount 的启动规划失败。切换时把另一个**禁用**即可。
+
+---
+
 **状态速览（2026-10-07）**：模块 + **Hybrid Mount（我们的模块单独用 VFS 后端）** 已在真机验证：
 - ✅ NP管理器 / 文件管理器调用安装 → 正常弹出 InstallerX
 - ✅ Hunter 的挂载层告警 `ACTIVE_OVERLAY_OVER_SYSTEM:/system_ext/priv-app` 消失
@@ -448,3 +471,10 @@ GKI 的设计前提就是**内核与平台解耦**：内核 + vendor 在机型**
 - 再打包的 APK 来自 GPL-3.0 的 InstallerX Revived，因此**按 GPL-3.0 分发**；许可证全文见 [`LICENSE`](LICENSE)，上游源码：<https://github.com/wxxsfxyzm/InstallerX-Revived>。
 - 本仓库的构建脚本与文档同样以 GPL-3.0 提供。
 - 本模块**不包含 OPPO 原厂 APK**，只在再打包的 APK 中保留了从设备上提取的 APK Signing Block（其中是证书等公开材料）。再分发该材料的合规性请自行评估。
+
+### 14.4 另见
+
+- **[COS-IFS / coloros-installer-forward-shell](https://github.com/k-ying/coloros-installer-forward-shell)** ——
+  转发壳方案。若你不想每次上游 InstallerX 更新都重建本模块，用那个仓库；两者**不能同时启用**。
+- 本文档第 1–13 节记录的机制与踩坑（签名块嫁接、VFS 后端、开机自检「恰好 1 个系统安装器」、
+  Hybrid Mount 规则）是转发壳方案的直接基础，那边的基本约束与这里一致。
