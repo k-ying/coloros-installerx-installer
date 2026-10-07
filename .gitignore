@@ -1,0 +1,22 @@
+# NEVER commit OEM firmware or built APKs -- the donor APK is a stock OPPO file
+# and must not be redistributed.
+*.apk
+OppoPackageInstaller.apk
+*.apk.idsig
+*.img
+*.odex
+*.vdex
+
+# build leftovers
+sysout*/
+sysdec/
+fw/
+home/
+work/
+dist/
+__pycache__/
+*.pyc
+*.log
+
+.DS_Store
+Thumbs.db
