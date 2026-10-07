@@ -3,14 +3,14 @@
 #
 #   APKSRC   the APK produced by build_sysapk.sh   [work/PackageInstaller-final.apk]
 #   MOD      module source tree                    [module]
-#   VERSION  used in the output file name          [v1.1]
+#   VERSION  used in the output file name          [v1.2]
 #   OUT      output zip                            [dist/InstallerX-coloros-system-installer-$VERSION.zip]
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
 MOD=${MOD:-module}
 APKSRC=${APKSRC:-work/PackageInstaller-final.apk}
-VERSION=${VERSION:-v1.1}
+VERSION=${VERSION:-v1.2}
 OUT=${OUT:-dist/InstallerX-coloros-system-installer-$VERSION.zip}
 APKDST="$MOD/system/system_ext/priv-app/OppoPackageInstaller/OppoPackageInstaller.apk"
 
